@@ -10,7 +10,7 @@
 - **Поверхность:** \(f(\alpha, \beta) = L(\theta + \alpha d_1 + \beta d_2)\) на сетке \((\alpha, \beta) \in [-r, r]^2\), где \(L\) — средний cross-entropy loss на фиксированном подмножестве батчей из `DataLoader`.
 - **Аппроксимации:** три модели — полная квадратика (LS + проекция на PD), диагональная квадратика (\(b=0\)), квадратика по градиенту и конечно-разностной оценке проекций Гессиана на \((d_1, d_2)\).
 - **Метрики:** RMSE, \(L_\infty\), относительный RMSE к размаху \(f\); зависимость от радиуса \(r\).
-- **Выход:** чекпоинты, `.npz` с поверхностью и плоскими направлениями, `.csv` с метриками, графики в `figures/`, ноутбук для повторного анализа.
+- **Выход:** чекпоинты, `.npz` с поверхностью и плоскими направлениями, `.csv` с 2D/1D-метриками, графики в `figures/`, ноутбук для повторного анализа.
 
 ---
 
@@ -329,21 +329,33 @@ q_3(\alpha,\beta) = L_0 + g_1\alpha + g_2\beta + \tfrac{1}{2}(H_{11}\alpha^2 + 2
 
 - `--model model1|model2` (обязательный).
 - `--skip-train` — пропустить обучение (ожидается готовый `{model}_final.pth`).
+- `--grid-steps` — переопределить `GRID_STEPS` в рантайме.
+- `--radius-default` — переопределить `RADIUS_DEFAULT` в рантайме.
+- `--radius-list` — список радиусов через запятую (например, `0.1,0.25,0.5`).
+- `--max-batches` — ограничить число батчей для `compute_surface` и Hessian-fit.
+- `--synthetic-smoke` — использовать синтетический `DataLoader` вместо CIFAR-10.
+- `--synthetic-samples` — размер синтетической выборки для `--synthetic-smoke`.
 
 **Последовательность:**
 
 1. Сиды и создание `DATA_DIR`, `CHECKPOINT_DIR`, `RESULTS_DIR`, `figures`.
 2. Если нет `--skip-train`: `build_model` → **`train_model`**.
-3. Новый экземпляр модели **`build_model(...).to(device)`**, загрузка **`_load_checkpoint`**.
-4. **`get_val_loader()`**.
-5. **`compute_surface`** с `radius=RADIUS_DEFAULT`, `steps=GRID_STEPS`, `seed=SEED`.
-6. Загрузка соответствующего `.npz`.
-7. Три фита: `p1,f_q1`, `p2,f_q2`, `p3,f_q3`.
-8. Таблица метрик для default radius (`df_default`).
-9. Графики: 3D, contour, comparison, три error heatmap (q1, q2, q3).
-10. **`metrics_vs_radius`** → CSV.
-11. **`plot_metrics_vs_radius`**.
-12. Печать в консоль словарей параметров и двух таблиц (`df_default`, `df_rad`).
+3. Новый экземпляр модели **`build_model(...).to(device)`**.
+4. Если не указан `--synthetic-smoke`: загрузка **`_load_checkpoint`** и **`get_val_loader()`**.
+5. Если указан `--synthetic-smoke`: попытка мягкой загрузки чекпоинта (`_try_load_checkpoint`) и построение синтетического loader (`TensorDataset`).
+6. Применение runtime-overrides через `_apply_runtime_overrides`.
+7. Preflight: при обычном (`не synthetic`) режиме отсутствие `{model}_final.pth` приводит к понятному `FileNotFoundError` с инструкцией.
+8. **`compute_surface`** с `radius=RADIUS_DEFAULT`, `steps=GRID_STEPS`, `seed=SEED`.
+9. Загрузка соответствующего `.npz`.
+10. Три фита: `p1,f_q1`, `p2,f_q2`, `p3,f_q3`.
+11. Таблица метрик для default radius (`df_default`).
+12. Графики: 3D, contour, comparison, три error heatmap (q1, q2, q3).
+13. **`metrics_vs_radius`** → CSV.
+14. **`plot_metrics_vs_radius`**.
+15. Выделение 1D-срезов из 2D-плоскости: `f(alpha,0)` и `f(0,beta)`.
+16. Сохранение 1D-профилей (`profile_1d_*.csv`) и 1D-метрик (default + vs radius).
+17. Построение 1D-графиков профилей и ошибок по радиусу.
+18. Печать в консоль словарей параметров и таблиц 2D/1D-метрик.
 
 **Примеры команд:**
 
@@ -351,6 +363,8 @@ q_3(\alpha,\beta) = L_0 + g_1\alpha + g_2\beta + \tfrac{1}{2}(H_{11}\alpha^2 + 2
 cd mo_project3
 python run_pipeline.py --model model1
 python run_pipeline.py --model model1 --skip-train
+python run_pipeline.py --model model1 --skip-train --grid-steps 7 --radius-default 0.1 --radius-list 0.1 --max-batches 2
+MPLBACKEND=Agg python run_pipeline.py --model model1 --skip-train --synthetic-smoke --synthetic-samples 128 --grid-steps 5 --radius-default 0.1 --radius-list 0.1 --max-batches 1
 ```
 
 ---
@@ -395,6 +409,9 @@ python run_pipeline.py --model model1 --skip-train
 | Финальный чекпоинт | `data/processed/checkpoints/{model}_final.pth` |
 | Поверхность | `data/processed/results/surface_{model}_r{radius}.npz` |
 | Метрики по радиусам | `data/processed/results/metrics_vs_radius_{model}.csv` |
+| 1D профили (default radius) | `data/processed/results/profile_1d_{model}_r{radius}.csv` |
+| 1D метрики (default radius) | `data/processed/results/metrics_1d_default_{model}.csv` |
+| 1D метрики по радиусам | `data/processed/results/metrics_1d_vs_radius_{model}.csv` |
 | Рисунки пайплайна | `data/processed/results/figures/*.png` (имена задаёт `run_pipeline.py`) |
 | Рисунки из ноутбука | те же `figures/`, имена с префиксом `nb_` где указано в ячейках |
 
@@ -406,6 +423,9 @@ python run_pipeline.py --model model1 --skip-train
 - **Кеширование:** повторный запуск не пересчитывает существующие `surface_*.npz` и может опираться на уже сохранённые данные в `metrics_vs_radius`.
 - **Согласованность q3:** сохранение **`d1_flat`, `d2_flat`, `theta_flat`** в `.npz` критично: иначе при перезапуске нельзя было бы гарантировать те же направления и ту же плоскость в параметрах.
 - **Восстановление \(\theta\)` после `compute_surface`** и в конце **`fit_hessian_quadratic`** снижает риск ошибочного использования «сдвинутой» модели в последующих шагах пайплайна.
+- **Smoke без внешних зависимостей:** флаг `--synthetic-smoke` позволяет прогонять end-to-end pipeline без скачивания CIFAR-10 (полезно при проблемах с сетью, прокси или SSL).
+- **Headless-окружения:** для стабильного smoke лучше запускать с `MPLBACKEND=Agg`, чтобы избежать проблем GUI-бэкендов matplotlib.
+- **1D как часть защиты:** 1D-срезы считаются не отдельной независимой процедурой, а как проекции из той же 2D-плоскости направлений, что обеспечивает согласованность сравнения q1/q2/q3 между 2D и 1D.
 
 ---
 
