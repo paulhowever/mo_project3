@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import copy
 import os
 import sys
 from pathlib import Path
@@ -160,11 +159,12 @@ def compute_surface(
     _ensure_dirs()
     _set_seeds(seed)
     names = [n for n, _ in model.named_parameters()]
-    base_state = {n: p.detach().cpu().clone() for n, p in model.named_parameters()}
-    raw1 = _random_direction_like_state(base_state)
-    raw2 = _random_direction_like_state(base_state)
-    d1, d2 = _normalize_directions(base_state, raw1, raw2)
-    theta_flat = _flatten_state_dict(base_state, names)
+    param_state = {n: p.detach().cpu().clone() for n, p in model.named_parameters()}
+    full_base_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+    raw1 = _random_direction_like_state(param_state)
+    raw2 = _random_direction_like_state(param_state)
+    d1, d2 = _normalize_directions(param_state, raw1, raw2)
+    theta_flat = _flatten_state_dict(param_state, names)
     d1_flat = _flatten_state_dict(d1, names)
     d2_flat = _flatten_state_dict(d2, names)
 
@@ -181,8 +181,10 @@ def compute_surface(
         j = idx % steps
         a = float(alpha_grid[i, j])
         b = float(beta_grid[i, j])
-        new_sd = _state_from_base_and_directions(base_state, d1, d2, a, b, device)
-        model.load_state_dict(new_sd, strict=True)
+        shifted_params = _state_from_base_and_directions(param_state, d1, d2, a, b, device)
+        current_state = {k: v.to(device) for k, v in full_base_state.items()}
+        current_state.update(shifted_params)
+        model.load_state_dict(current_state, strict=True)
         with torch.no_grad():
             loss = _eval_loss_batches(model, loader, device, max_batches=max_batches)
         f[i, j] = loss
@@ -198,8 +200,8 @@ def compute_surface(
         d2_flat=d2_flat.numpy(),
         seed=np.array(seed),
     )
-    restored = {k: v.to(device) for k, v in base_state.items()}
-    model.load_state_dict(restored, strict=True)
+    restored_state = {k: v.to(device) for k, v in full_base_state.items()}
+    model.load_state_dict(restored_state, strict=True)
     return f, alpha_grid, beta_grid
 
 

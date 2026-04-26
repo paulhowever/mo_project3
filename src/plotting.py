@@ -145,3 +145,53 @@ def plot_metrics_vs_radius(df: pd.DataFrame, filename: str) -> None:
     fig.savefig(path, dpi=150)
     plt.close(fig)
 
+
+def plot_1d_profiles(
+    profiles: dict[str, dict[str, np.ndarray]],
+    filename: str,
+    title: str = "1D срезы loss landscape",
+) -> None:
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+    for ax, axis_name in zip(axes, ("alpha_axis", "beta_axis")):
+        payload = profiles[axis_name]
+        x = payload["x"]
+        ax.plot(x, payload["true"], label="true", linewidth=2)
+        ax.plot(x, payload["full_quadratic"], label="q1 full")
+        ax.plot(x, payload["diagonal_quadratic"], label="q2 diagonal")
+        ax.plot(x, payload["hessian_quadratic"], label="q3 hessian")
+        ax.set_xlabel("alpha" if axis_name == "alpha_axis" else "beta")
+        ax.set_ylabel("Loss")
+        ax.set_title("f(alpha, 0)" if axis_name == "alpha_axis" else "f(0, beta)")
+        ax.grid(True, alpha=0.3)
+        ax.legend()
+    fig.suptitle(title, fontsize=12)
+    path = os.path.join(_fig_dir(), filename)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
+def plot_1d_metrics_vs_radius(df_1d: pd.DataFrame, filename: str) -> None:
+    fig, axes = plt.subplots(2, 2, figsize=(11, 8), sharex=True)
+    axis_map = [("alpha_axis", axes[0]), ("beta_axis", axes[1])]
+    for axis_name, (ax_rmse, ax_linf) in axis_map:
+        sub = df_1d[df_1d["axis"] == axis_name]
+        for approx, grp in sub.groupby("approx_type"):
+            ax_rmse.plot(grp["radius"], grp["RMSE"], marker="o", label=approx)
+            ax_linf.plot(grp["radius"], grp["L_inf"], marker="o", label=approx)
+        title_suffix = "f(alpha, 0)" if axis_name == "alpha_axis" else "f(0, beta)"
+        ax_rmse.set_title(f"RMSE: {title_suffix}")
+        ax_linf.set_title(f"L_inf: {title_suffix}")
+        ax_rmse.set_ylabel("RMSE")
+        ax_linf.set_ylabel("L_inf")
+        ax_rmse.grid(True, alpha=0.3)
+        ax_linf.grid(True, alpha=0.3)
+        ax_rmse.legend()
+        ax_linf.legend()
+    axes[1, 0].set_xlabel("radius")
+    axes[1, 1].set_xlabel("radius")
+    path = os.path.join(_fig_dir(), filename)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
