@@ -1,0 +1,37 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{margin=2.2cm}
+
+\title{Отчёт по ЛР 3: Анализ Loss Landscape нейросети на CIFAR-10}
+\author{Павел Тищенко}
+\date{\today}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+\input{sections/01_problem_statement}
+\input{sections/02_data_eda}
+\input{sections/03_preprocessing}
+\input{sections/04_baseline_model}
+\input{sections/05_theory}
+\input{sections/06_experiments}
+\input{sections/07_results_analysis}
+\input{sections/08_config_comparison}
+\input{sections/09_conclusions}
+
+\newpage
+\bibliographystyle{plain}
+\bibliography{bibliography}
+
+\end{document}

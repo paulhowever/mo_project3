@@ -1,0 +1,19 @@
+\section{Базовая модель}
+
+\subsection{Архитектуры}
+В работе используются две архитектуры:
+\begin{itemize}
+    \item \textbf{model1}: residual ResNet-like;
+    \item \textbf{model2}: plain-вариант без skip-connections.
+\end{itemize}
+
+\subsection{Тренировочная конфигурация}
+\begin{itemize}
+    \item Optimizer: SGD ($lr=0.1$, momentum $=0.9$, weight decay $=5 \cdot 10^{-4}$),
+    \item scheduler: CosineAnnealingLR,
+    \item epochs: 30,
+    \item batch size: 128.
+\end{itemize}
+
+\subsection{Baseline-ориентиры}
+Для model1 при 30 эпохах ожидаемый диапазон val accuracy: около 0.88--0.91. Это используется как sanity-check качества обученного чекпоинта перед анализом landscape.
