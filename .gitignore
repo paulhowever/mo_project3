@@ -1,40 +1,44 @@
-# OS / editors
-.DS_Store
-.idea/
-.vscode/
-
 # Python
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
-.python-version
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-
-# Virtual environments
+.Python
+*.egg-info/
+dist/
+build/
 .venv/
 venv/
-env/
+*.egg
 
 # Jupyter
 .ipynb_checkpoints/
+*.ipynb_checkpoints
 
-# Build / packaging
-build/
-dist/
-*.egg-info/
+# Данные и тяжёлые артефакты
+data/raw/cifar-10-batches-py/
 
-# Logs
-*.log
+data/processed/checkpoints/*
+!data/processed/checkpoints/.gitkeep
 
-# Data artifacts
-data/processed/**
+data/processed/results/**
+!data/processed/results/
+!data/processed/results/.gitkeep
+!data/processed/results/figures/
+!data/processed/results/figures/.gitkeep
+
 !data/processed/.gitkeep
-data/raw/cifar-10-batches-py
 
-# Local experiment outputs
-outputs/
-artifacts/
-checkpoints/
+# macOS
+.DS_Store
+**/.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Среда
+.env
+*.log

@@ -29,7 +29,6 @@
 | `src/quadratic_fit.py` | Три функции фитирования / q3 по FD. |
 | `src/metrics.py` | Метрики и `metrics_vs_radius` → CSV. |
 | `src/plotting.py` | Сохранение всех фигур в `data/processed/results/figures/`. |
-| `src/hessian_2d.py` | Заглушки под расширения (основной q3 в `quadratic_fit.py`). |
 | `src/__init__.py` | Пакет `src` (пустое описание). |
 | `notebooks/main_analysis.ipynb` | Повторение ключевых шагов анализа в Jupyter. |
 | `data/raw/` | Скачивание CIFAR-10 (`torchvision`, `root=config.DATA_DIR`). |
@@ -56,6 +55,7 @@
 | `EPOCHS` | `30`. |
 | `BATCH_SIZE` | `128`. |
 | `LR` | `0.1` — начальный шаг SGD. |
+| `EPS_HESSIAN` | `0.01` — шаг конечных разностей для FD-оценки проекций Гессиана в `fit_hessian_quadratic`. |
 
 **Замечание:** при импорте `config.py` выполняется `import torch`, поэтому в среде без PyTorch модуль не загрузится.
 
@@ -139,7 +139,7 @@
 - **Train:** `RandomCrop(32, padding=4)`, `RandomHorizontalFlip`, `ToTensor`, `Normalize(mean, std)` с константами CIFAR-10 из ТЗ.
 - **Val:** только `ToTensor` + тот же `Normalize`.
 - `datasets.CIFAR10(..., root=config.DATA_DIR, download=True)`.
-- `DataLoader`: `batch_size=config.BATCH_SIZE`, `num_workers=2`, `pin_memory` если CUDA.
+- `DataLoader`: `batch_size=config.BATCH_SIZE`, `num_workers=0 if sys.platform == "darwin" else 2`, `pin_memory` если CUDA.
 
 ### 7.3. Цикл обучения: `train_model(model, model_name, cfg)`
 
@@ -183,10 +183,11 @@ python src/train.py --model model2
 
 | Функция | Назначение |
 |---------|------------|
-| `get_val_loader()` | Только нормализованный CIFAR-10 test без аугментаций; тот же `BATCH_SIZE`, `num_workers`, `pin_memory`. |
+| `get_val_loader()` | Только нормализованный CIFAR-10 test без аугментаций; тот же `BATCH_SIZE`, `num_workers=0` на macOS иначе `2`, `pin_memory`. |
 | `_random_direction_like_state` | Для каждого параметра `torch.randn_like`. |
 | `_filterwise_normalize_direction(theta, direction)` | Если `theta.dim() == 4` — для каждого выходного индекса \(i\) масштабировать срез `direction[i]` так, чтобы \(\|direction[i]\|_2 = \|\theta[i]\|_2\). Иначе — масштабировать **весь** тензор на \(\|\theta\|/\|d\|\) (tensor-wise для bias, BN, FC и т.д.). |
 | `_normalize_directions` | Применяет нормировку к `d1` и `d2` по каждому имени в `state_dict`. |
+| `_gram_schmidt_orthogonalize` | Ортогонализует `d2` относительно `d1` в полном векторе параметров, затем вызывающий код снова применяет filter-wise нормировку к `d2`. |
 | `_state_from_base_and_directions` | \(\theta_{new} = \theta + \alpha d_1 + \beta d_2\) покомпонентно, затем перенос на `device`. |
 | `_eval_loss_batches` | В `torch.no_grad()`, `model.eval()`, **первые `max_batches` батчей** (по умолчанию 10): `CrossEntropyLoss(reduction="sum")`, возврат **среднего** loss на всех учтённых объектах (сумма / число примеров). |
 | `_flatten_state_dict` | Конкатенация векторов в порядке `names` из `named_parameters()`. |
@@ -200,14 +201,15 @@ python src/train.py --model model2
 3. Фиксируется порядок имён параметров `names`.
 4. **`base_state`:** копии всех параметров на **CPU** (`detach().cpu().clone()`).
 5. Генерируются `raw1`, `raw2`, затем **`d1`, `d2`** после `_normalize_directions` (filter-wise + tensor-wise правило выше).
-6. Сохраняются **`theta_flat`, `d1_flat`, `d2_flat`** (NumPy после `.numpy()`), чтобы **тот же** план сечения использовался в `fit_hessian_quadratic` и при загрузке с диска без повторной генерации СВ.
-7. Сетка: `np.linspace(-radius, radius, steps)` по \(\alpha\) и \(\beta\); `np.meshgrid(..., indexing="ij")` → `alpha_grid[i,j]`, `beta_grid[i,j]` согласованы с `f[i,j]`.
-8. Цикл по **плоскому** индексу `0 .. steps*steps-1` с **tqdm**: для каждой пары \((i,j)\) загружается `state_dict` в модель, внутри цикла вызов `_eval_loss_batches` обёрнут в **`with torch.no_grad()`** (двойная защита).
-9. Сохранение **`{RESULTS_DIR}/surface_{model_name}_r{radius}.npz`** с полями:
+6. **`d2`** ортогонализуется к **`d1`** через **`_gram_schmidt_orthogonalize`**, затем снова нормируется filter-wise (`_filterwise_normalize_direction` по каждому параметру), чтобы оси плоскости были геометрически ортогональны при сохранении масштаба фильтров.
+7. Сохраняются **`theta_flat`, `d1_flat`, `d2_flat`** (NumPy после `.numpy()`), чтобы **тот же** план сечения использовался в `fit_hessian_quadratic` и при загрузке с диска без повторной генерации СВ.
+8. Сетка: `np.linspace(-radius, radius, steps)` по \(\alpha\) и \(\beta\); `np.meshgrid(..., indexing="ij")` → `alpha_grid[i,j]`, `beta_grid[i,j]` согласованы с `f[i,j]`.
+9. Цикл по **плоскому** индексу `0 .. steps*steps-1` с **tqdm**: для каждой пары \((i,j)\) загружается `state_dict` в модель, внутри цикла вызов `_eval_loss_batches` обёрнут в **`with torch.no_grad()`** (двойная защита).
+10. Сохранение **`{RESULTS_DIR}/surface_{model_name}_r{radius}.npz`** с полями:
    - `alpha_grid`, `beta_grid`, `f`
    - `theta_flat`, `d1_flat`, `d2_flat`
    - `seed` (скаляр в массиве NumPy)
-10. **Восстановление весов модели** в `base_state` на `device` (чтобы после длительного сканирования сетки модель снова была в точке \(\theta\)).
+11. **Восстановление весов модели** в `base_state` на `device` (чтобы после длительного сканирования сетки модель снова была в точке \(\theta\)).
 
 **Возврат:** `f`, `alpha_grid`, `beta_grid` (все `numpy.ndarray`).
 
@@ -266,7 +268,7 @@ q_1(\alpha,\beta) = c + u\alpha + v\beta + \tfrac{1}{2}(a\alpha^2 + 2b\alpha\bet
 4. Скалярный loss = **средний** CE по всем примерам в этих батчах: для каждого батча `mean_CE * batch_size` суммируется, делится на общее число объектов — согласовано с `CrossEntropyLoss(reduction='mean')` по полной подвыборке.
 5. **`backward()`** → конкатенация градиентов `grads`.
 6. **`g1 = <grads, d1>`**, **`g2 = <grads, d2>`** (поэлементно, сумма произведений).
-7. Конечные разности при **`eps=0.01`** (по умолчанию):
+7. Конечные разности при **`eps=config.EPS_HESSIAN`** (по умолчанию `0.01`, задаётся в `config.py`):
    - \(H_{11} \approx (L(\theta+\varepsilon d_1) - 2L_0 + L(\theta-\varepsilon d_1))/\varepsilon^2\)
    - \(H_{22} \approx (L(\theta+\varepsilon d_2) - 2L_0 + L(\theta-\varepsilon d_2))/\varepsilon^2\)
    - \(H_{12} \approx (L(\theta+\varepsilon d_1+\varepsilon d_2) - L(\theta+\varepsilon d_1) - L(\theta+\varepsilon d_2) + L_0)/\varepsilon^2\)
@@ -296,7 +298,7 @@ q_3(\alpha,\beta) = L_0 + g_1\alpha + g_2\beta + \tfrac{1}{2}(H_{11}\alpha^2 + 2
 
 1. Если нет файла **`surface_{model_name}_r{r}.npz`**, вызывается **`compute_surface`** с `seed=cfg.SEED`, `steps=cfg.GRID_STEPS`.
 2. Загрузка `npz`.
-3. Вычисляются **`f1`, `f2`, `f3`** через `fit_full_quadratic`, `fit_diagonal_quadratic`, `fit_hessian_quadratic` (для q3 передаются `theta_flat`, `d1_flat`, `d2_flat` из файла).
+3. Вычисляются **`f1`, `f2`, `f3`** через `fit_full_quadratic`, `fit_diagonal_quadratic`, `fit_hessian_quadratic` (для q3 передаются `theta_flat`, `d1_flat`, `d2_flat` из файла и **`eps=config.EPS_HESSIAN`**).
 4. Для каждой аппроксимации добавляется строка в таблицу с полями: **`radius`**, **`model_name`**, **`approx_type`**, **`RMSE`**, **`L_inf`**, **`RelRMSE`**.
 
 Имена `approx_type`: `full_quadratic`, `diagonal_quadratic`, `hessian_quadratic`.
@@ -316,6 +318,8 @@ q_3(\alpha,\beta) = L_0 + g_1\alpha + g_2\beta + \tfrac{1}{2}(H_{11}\alpha^2 + 2
 | `plot_comparison` | Сетка 2×2: истина, q1, q2, q3; в заголовке каждого субплота **RMSE** относительно истины (для истины RMSE = 0) | то же |
 | `plot_error_heatmap` | `seaborn.heatmap` от \(\|f_{true}-f_{approx}\|\), без подписей тиков сетки | то же |
 | `plot_metrics_vs_radius` | Два вертикальных субплота: RMSE(r) и L_inf(r), линии по `groupby("approx_type")`, легенда | то же |
+| `plot_1d_profiles` / `plot_1d_metrics_vs_radius` | 1D-профили и метрики по радиусу | то же |
+| `plot_two_surfaces_side_by_side` | Два `contourf` рядом с общей шкалой уровней (сравнение двух поверхностей) | то же |
 
 Импорт `Axes3D` сделан для регистрации 3D-проекции в matplotlib (`# noqa: F401`).
 
@@ -333,6 +337,7 @@ q_3(\alpha,\beta) = L_0 + g_1\alpha + g_2\beta + \tfrac{1}{2}(H_{11}\alpha^2 + 2
 - `--radius-default` — переопределить `RADIUS_DEFAULT` в рантайме.
 - `--radius-list` — список радиусов через запятую (например, `0.1,0.25,0.5`).
 - `--max-batches` — ограничить число батчей для `compute_surface` и Hessian-fit.
+- `--device` — принудительно `cpu`, `cuda` или `mps` (иначе берётся `config.DEVICE`).
 - `--synthetic-smoke` — использовать синтетический `DataLoader` вместо CIFAR-10.
 - `--synthetic-samples` — размер синтетической выборки для `--synthetic-smoke`.
 
@@ -387,17 +392,14 @@ MPLBACKEND=Agg python run_pipeline.py --model model1 --skip-train --synthetic-sm
 6. Таблица метрик через `compute_metrics` и `pandas`; при наличии IPython — стилизованный `display`, иначе `print`.
 7. `plot_comparison`.
 8. Чтение `metrics_vs_radius_{MODEL_NAME}.csv`, `display`, `plot_metrics_vs_radius`.
+9. Таблица 1D-метрик из `metrics_1d_vs_radius_{MODEL_NAME}.csv` (при наличии файла).
+10. Текстовые выводы по сравнению q1/q2/q3 и росту ошибок с радиусом.
 
 ---
 
-## 14. Заглушки бонуса: `src/hessian_2d.py`
+## 14. Hessian-аппроксимация в коде
 
-Содержит **две функции-заглушки** с docstring:
-
-- `finite_difference_second(...)` — при вызове поднимает `NotImplementedError` с текстом, что для пайплайна нужно использовать `quadratic_fit.fit_hessian_quadratic`.
-- `project_to_directions(...)` — аналогично не реализовано.
-
-Это сознательное разделение: **рабочая q3** сосредоточена в **`quadratic_fit.py`**, файл `hessian_2d.py` зарезервирован под расширения (другие схемы FD, проекция полного Гессиана и т.п.).
+Файл `src/hessian_2d.py` удалён; основная реализация Hessian-аппроксимации находится в `src/quadratic_fit.py::fit_hessian_quadratic`.
 
 ---
 
@@ -439,6 +441,7 @@ MPLBACKEND=Agg python run_pipeline.py --model model1 --skip-train --synthetic-sm
 | ResNet-like + plain, 3×2 блока, каналы 64/128/256, GAP+FC | `src/model.py` |
 | Обучение CIFAR-10, аугментации, нормализация, SGD, Cosine, чекпоинты, tqdm, CLI | `src/train.py` |
 | Loss landscape, filter-wise, сетка, no_grad, tqdm, сохранение, CLI | `src/surface.py` |
+| Ортогонализация d2 ⊥ d1 (Грам-Шмидт) | `src/surface.py::_gram_schmidt_orthogonalize` |
 | Три аппроксимации (LS+PD, диагональная, Hessian FD) | `src/quadratic_fit.py` |
 | Метрики и `metrics_vs_radius` + CSV | `src/metrics.py` |
 | Пять типов графиков | `src/plotting.py` |

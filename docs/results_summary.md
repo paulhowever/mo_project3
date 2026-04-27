@@ -10,8 +10,7 @@
 
 ## 2) Ключевые метрики (model1, r=0.1)
 
-Источник: `data/processed/results/metrics_vs_radius_model1.csv`  
-Режим получения: обучение и расчёты на `RTX 3060` в полном режиме батчей (не fast-check).
+Источник: `data/processed/results/metrics_vs_radius_model1.csv`
 
 | approx_type | RMSE | L_inf | RelRMSE |
 |---|---:|---:|---:|
@@ -21,15 +20,17 @@
 
 ## 3) 1D-срезы (model1, r=0.1)
 
-Источник: `data/processed/results/metrics_1d_vs_radius_model1.csv`  
-Режим получения: обучение и расчёты на `RTX 3060` в полном режиме батчей.
+Источник: `data/processed/results/metrics_1d_vs_radius_model1.csv`
 
-- `alpha_axis`:
-  - `q1/q2`: RMSE ~= `8.301e-06`
-  - `q3`: RMSE ~= `1.959e-05`
-- `beta_axis`:
-  - `q1/q2`: RMSE ~= `1.426e-05`
-  - `q3`: RMSE ~= `5.350e-05`
+| axis | approx_type | RMSE | RelRMSE |
+|------|-------------|------|---------|
+| alpha_axis | q1/q2 | 8.301e-06 | 0.0354 |
+| alpha_axis | q3    | 1.959e-05 | 0.0836 |
+| beta_axis  | q1/q2 | 1.426e-05 | 0.0195 |
+| beta_axis  | q3    | 5.350e-05 | 0.0732 |
+
+На малом радиусе у обученной модели кросс-терм `b` близок к нулю, поэтому q1 ≈ q2 на 1D срезах.
+Это эмпирическое наблюдение: коэффициенты фитов различаются в общем случае.
 
 ## 4) Научная интерпретация
 
@@ -49,4 +50,4 @@ TODO:
 
 - Полная реализация: `docs/implementation_report.md`
 - Протокол воспроизводимости: `docs/reproducibility.md`
-- Итоговый отчёт: `docs/report_template.md`
+- Итоговый отчёт: `docs/report.md`

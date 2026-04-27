@@ -103,6 +103,8 @@ def _apply_runtime_overrides(args: argparse.Namespace) -> None:
         config.RADIUS_DEFAULT = float(args.radius_default)
     if args.radius_list:
         config.RADIUS_LIST = [float(x.strip()) for x in args.radius_list.split(",") if x.strip()]
+    if args.device is not None:
+        config.DEVICE = args.device
 
 
 def main() -> None:
@@ -135,6 +137,12 @@ def main() -> None:
         type=int,
         default=10,
         help="Число батчей для оценки loss в surface и Hessian-fit.",
+    )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default=None,
+        help="Форсировать устройство: cpu, cuda, mps. По умолчанию — из config.py.",
     )
     args = parser.parse_args()
     _apply_runtime_overrides(args)
@@ -193,6 +201,7 @@ def main() -> None:
         data["theta_flat"],
         data["d1_flat"],
         data["d2_flat"],
+        eps=config.EPS_HESSIAN,
         max_batches=args.max_batches,
     )
 

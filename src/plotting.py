@@ -195,3 +195,29 @@ def plot_1d_metrics_vs_radius(df_1d: pd.DataFrame, filename: str) -> None:
     fig.savefig(path, dpi=150)
     plt.close(fig)
 
+
+def plot_two_surfaces_side_by_side(
+    alpha_grid: np.ndarray,
+    beta_grid: np.ndarray,
+    f1: np.ndarray,
+    f2: np.ndarray,
+    label1: str,
+    label2: str,
+    filename: str,
+) -> None:
+    """Два contour рядом для сравнения model1 vs model2."""
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
+    vmin = min(f1.min(), f2.min())
+    vmax = max(f1.max(), f2.max())
+    levels = np.linspace(vmin, vmax, 30)
+    for ax, f, label in [(ax1, f1, label1), (ax2, f2, label2)]:
+        cs = ax.contourf(alpha_grid, beta_grid, f, levels=levels, cmap="viridis")
+        ax.set_title(label)
+        ax.set_xlabel("α")
+        ax.set_ylabel("β")
+        fig.colorbar(cs, ax=ax)
+    path = os.path.join(_fig_dir(), filename)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+

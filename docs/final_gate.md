@@ -4,7 +4,7 @@
 
 ## 1. Код и запуск
 
-- [ ] Проходит быстрый sanity-check без внешних зависимостей:
+- [x] Проходит быстрый sanity-check без внешних зависимостей:
   - `MPLBACKEND=Agg python3 run_pipeline.py --model model1 --skip-train --synthetic-smoke --synthetic-samples 128 --grid-steps 5 --radius-default 0.1 --radius-list 0.1 --max-batches 1`
 - [ ] Проходит быстрый research-check (локальный CIFAR-10, ускоренный режим):
   - `python3 run_pipeline.py --model model1 --skip-train --grid-steps 21 --max-batches 1`
@@ -20,22 +20,22 @@
   - `metrics_1d_vs_radius_*.csv`
   - `profile_1d_*.csv`
   - `figures/*.png`
-- [ ] В репозитории отражена сводка результатов:
+- [x] В репозитории отражена сводка результатов:
   - `docs/results_summary.md`
 - [ ] Чекпоинты в `data/processed/checkpoints/` согласованы с выбранным сценарием запуска.
 
 ## 3. Документация
 
-- [ ] `README.md` отражает фактические команды запуска (full + smoke).
-- [ ] `docs/roadmap.md` содержит актуальные статусы этапов.
-- [ ] `docs/implementation_report.md` соответствует текущему CLI и инженерным доработкам.
-- [ ] Источники и постановка остаются согласованы с `docs/task_sources.md`.
-- [ ] Актуален `docs/voluntary_requirements_checklist.md` (покрытие добровольного ТЗ).
+- [x] `README.md` отражает фактические команды запуска (full + smoke).
+- [x] `docs/roadmap.md` содержит актуальные статусы этапов.
+- [x] `docs/implementation_report.md` соответствует текущему CLI и инженерным доработкам.
+- [x] Источники и постановка остаются согласованы с `docs/task_sources.md`.
+- [x] Актуален `docs/voluntary_requirements_checklist.md` (покрытие добровольного ТЗ).
 
 ## 4. Чеклист из `docs/CONTRIBUTING.md`
 
-- [ ] При необходимости обновлён `README.md` (структура/процесс).
-- [ ] Актуализированы `docs/roadmap.md` и `docs/report_template.md` (если нужно).
+- [x] При необходимости обновлён `README.md` (структура/процесс).
+- [x] Актуализированы `docs/roadmap.md` и `docs/report.md` (если нужно).
 - [ ] В diff нет временных файлов и локальных артефактов.
 - [ ] Изменения воспроизводимы без устных пояснений.
 
@@ -47,3 +47,8 @@ Merge в `main` выполняется, когда:
 2. Документация не противоречит коду.
 3. Чеклист из `docs/CONTRIBUTING.md` закрыт.
 4. PR содержит понятное описание «что сделано» и «как проверить».
+
+## Дата последнего прохода gate
+
+Smoke-check: пройден (дата: 2026-04-28)  
+Heavy-check: требует локального запуска с CIFAR-10

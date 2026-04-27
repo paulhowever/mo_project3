@@ -128,6 +128,9 @@ def fit_hessian_quadratic(
     """
     q3(α,β) = L(θ) + g1·α + g2·β + 0.5·(H11·α² + 2H12·αβ + H22·β²)
     с конечными разностями для проекций Гессиана.
+
+    Параметр ``eps`` — шаг для FD-оценки; при малом ``eps`` доминирует численный шум,
+    при большом — нелинейность. Рекомендуемый диапазон: 0.005–0.05.
     """
     theta = torch.tensor(theta_flat, dtype=torch.float32, device=device)
     d1 = torch.tensor(d1_flat, dtype=torch.float32, device=device)

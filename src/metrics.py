@@ -160,6 +160,7 @@ def metrics_vs_radius(
             theta_flat=data["theta_flat"],
             d1_flat=d1_flat,
             d2_flat=d2_flat,
+            eps=config.EPS_HESSIAN,
             max_batches=max_batches,
         )
 
@@ -228,6 +229,7 @@ def metrics_1d_vs_radius(
             theta_flat=data["theta_flat"],
             d1_flat=data["d1_flat"],
             d2_flat=data["d2_flat"],
+            eps=config.EPS_HESSIAN,
             max_batches=max_batches,
         )
         profiles = extract_1d_profiles(alpha, beta, f_true, f1, f2, f3)

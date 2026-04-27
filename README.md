@@ -95,6 +95,7 @@ $$
 
 ```text
 project3/
+├── Makefile
 ├── README.md
 ├── config.py
 ├── requirements.txt
@@ -105,8 +106,7 @@ project3/
 │   ├── surface.py
 │   ├── quadratic_fit.py
 │   ├── metrics.py
-│   ├── plotting.py
-│   └── hessian_2d.py
+│   └── plotting.py
 ├── notebooks/
 │   └── main_analysis.ipynb
 ├── data/
@@ -119,7 +119,7 @@ project3/
     ├── reproducibility.md
     ├── results_summary.md
     ├── implementation_report.md
-    ├── report_template.md
+    ├── report.md
     ├── final_gate.md
     └── roadmap.md
 ```
@@ -143,6 +143,12 @@ python3 run_pipeline.py --model model1
 ### Analysis only (if checkpoint exists)
 ```bash
 python3 run_pipeline.py --model model1 --skip-train
+```
+
+### Форсировать устройство (CPU / CUDA / MPS)
+```bash
+# Форсировать CPU:
+python3 run_pipeline.py --model model1 --skip-train --device cpu
 ```
 
 ### Fast run (for quick research iteration)
@@ -190,7 +196,7 @@ MPLBACKEND=Agg python3 run_pipeline.py \
 - Sweep по `eps` для `q3` и анализ устойчивости.
 - Несколько случайных плоскостей (несколько `seed`) с оценкой `mean±std`.
 - Сравнение `train-loss surface` vs `val-loss surface`.
-- Расширение сравнений на `model2` в полном режиме.
+- Полный прогон `model2` для подтверждения гипотезы о более гладком landscape у residual-архитектуры.
 
 ## 16. Authors / Course / Context
 

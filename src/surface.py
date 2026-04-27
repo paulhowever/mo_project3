@@ -101,6 +101,29 @@ def _normalize_directions(
     return d1n, d2n
 
 
+def _gram_schmidt_orthogonalize(
+    d1: dict[str, torch.Tensor],
+    d2: dict[str, torch.Tensor],
+    names: list[str],
+) -> dict[str, torch.Tensor]:
+    """
+    Ортогонализация d2 относительно d1 (Грам-Шмидт) в пространстве параметров.
+    После ортогонализации d2 перенормируется filter-wise.
+    Гарантирует <d1_flat, d2_flat> ≈ 0.
+    """
+    d1_flat = torch.cat([d1[n].reshape(-1) for n in names])
+    d2_flat = torch.cat([d2[n].reshape(-1) for n in names])
+    proj = (d2_flat @ d1_flat) / (d1_flat @ d1_flat).clamp_min(1e-12)
+    d2_flat_orth = d2_flat - proj * d1_flat
+    idx = 0
+    d2_orth: dict[str, torch.Tensor] = {}
+    for n in names:
+        sz = d1[n].numel()
+        d2_orth[n] = d2_flat_orth[idx : idx + sz].reshape(d1[n].shape)
+        idx += sz
+    return d2_orth
+
+
 def _state_from_base_and_directions(
     base_state: dict[str, torch.Tensor],
     d1: dict[str, torch.Tensor],
@@ -158,6 +181,9 @@ def compute_surface(
     Сохраняет .npz с theta_flat, d1_flat, d2_flat для последующего q3 и метрик.
     При фиксированном seed направления d1/d2 воспроизводимы; при повторных вызовах
     с тем же seed (например, для разных радиусов) используется одна и та же плоскость.
+
+    Направления d1 и d2 ортогонализированы (Грам-Шмидт) и нормированы filter-wise,
+    что гарантирует геометрически чистые оси плоскости сечения.
     """
     _ensure_dirs()
     _set_seeds(seed)
@@ -167,6 +193,11 @@ def compute_surface(
     raw1 = _random_direction_like_state(param_state)
     raw2 = _random_direction_like_state(param_state)
     d1, d2 = _normalize_directions(param_state, raw1, raw2)
+    d2 = _gram_schmidt_orthogonalize(d1, d2, names)
+    d2_normalized: dict[str, torch.Tensor] = {}
+    for n in names:
+        d2_normalized[n] = _filterwise_normalize_direction(param_state[n], d2[n])
+    d2 = d2_normalized
     theta_flat = _flatten_state_dict(param_state, names)
     d1_flat = _flatten_state_dict(d1, names)
     d2_flat = _flatten_state_dict(d2, names)
