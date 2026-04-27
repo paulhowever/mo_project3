@@ -71,6 +71,10 @@ $$
 - 2D surface + `q1/q2/q3` (базовый эксперимент),
 - 1D-срезы из той же плоскости,
 - sweep по радиусу `RADIUS_LIST = [0.1, 0.25, 0.5, 1.0, 2.0]`.
+- Дополнительные исследования для report3:
+  - direction sensitivity analysis;
+  - error scaling by radius (`error ~ C*r^p`);
+  - training dynamics (flat vs sharp, при наличии checkpoint'ов ранних эпох).
 
 Быстрый режим для оперативного обновления отчётных таблиц:
 - `--grid-steps 21 --max-batches 1`.
@@ -161,6 +165,11 @@ MPLBACKEND=Agg python3 run_pipeline.py \
   --radius-default 0.1 \
   --radius-list 0.1 \
   --max-batches 1
+```
+
+### Additional analyses for report3
+```bash
+python3 reports/report3/scripts/run_additional_analysis.py --model model1 --radius 0.1 --grid-steps 7 --max-batches 1
 ```
 
 ## 12. Reproducibility

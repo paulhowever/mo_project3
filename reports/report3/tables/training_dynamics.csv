@@ -1,0 +1,4 @@
+checkpoint_label,checkpoint_file,status,lambda_min,lambda_max,condition_number,sharpness
+early,model1_epoch1.pth,todo_missing_checkpoint,,,,
+middle,model1_epoch5.pth,todo_missing_checkpoint,,,,
+final,model1_final.pth,ok,1e-06,1e-06,1.0,0.0017771720886230469

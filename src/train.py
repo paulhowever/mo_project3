@@ -141,7 +141,7 @@ def train_model(model: nn.Module, model_name: str, cfg) -> None:
             "train_loss": train_loss,
             "val_accuracy": val_acc,
         }
-        if epoch % 10 == 0 or epoch == cfg.EPOCHS:
+        if epoch in (1, 5) or epoch % 10 == 0 or epoch == cfg.EPOCHS:
             path = os.path.join(cfg.CHECKPOINT_DIR, f"{model_name}_epoch{epoch}.pth")
             torch.save(state, path)
 

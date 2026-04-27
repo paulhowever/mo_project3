@@ -8,7 +8,9 @@
 - `sections/` — секции отчёта (постановка, EDA, теория, эксперименты, выводы).
 - `bibliography.bib` — минимальный bib-файл со ссылками.
 - `scripts/generate_report_figures.py` — генератор figure-пакета для отчёта.
+- `scripts/run_additional_analysis.py` — запуск дополнительных экспериментов (direction sensitivity, error scaling, training dynamics).
 - `figures/` — графики для вставки в `.tex` (создаются скриптом).
+- `tables/` — CSV-таблицы для дополнительных анализов.
 
 ## Быстрый старт
 
@@ -16,6 +18,7 @@
 
 ```bash
 python3 reports/report3/scripts/generate_report_figures.py
+python3 reports/report3/scripts/run_additional_analysis.py --model model1 --radius 0.1 --grid-steps 7 --max-batches 1
 ```
 
 2. Собрать LaTeX:
