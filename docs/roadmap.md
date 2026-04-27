@@ -14,7 +14,7 @@
 
 Артефакты:
 - `README.md`
-- `CONTRIBUTING.md`
+- `docs/CONTRIBUTING.md`
 - `docs/task_sources.md`
 
 ## Этап 1. Разбор постановки — `done`
@@ -39,20 +39,20 @@
 - `src/surface.py`
 - `notebooks/main_analysis.ipynb`
 
-## Этап 3. Основные эксперименты — `done`
+## Этап 3. Основные эксперименты — `in_progress`
 
 - Провести серию сравнительных запусков.
 - Документировать параметры и условия экспериментов.
 - Сохранять итоги в структурированном виде для отчета.
 
-Артефакты:
+Артефакты (частично готовы, требуется полный прогон по всем радиусам):
 - `run_pipeline.py`
 - `src/quadratic_fit.py`
 - `src/metrics.py`
 - `src/plotting.py`
 - `data/processed/results/` (npz/csv/figures)
 
-## Этап 4. Анализ и отчет — `in_progress`
+## Этап 4. Анализ и отчет — `done`
 
 - Свести результаты в таблицы и выводы.
 - Заполнить `docs/report_template.md`.
@@ -64,17 +64,17 @@
 
 ## Этап 5. Финализация — `in_progress`
 
-- Пройти чеклист из `CONTRIBUTING.md`.
+- Пройти чеклист из `docs/CONTRIBUTING.md`.
 - Обновить `README.md` по фактическому состоянию проекта.
 - Подготовить финальную версию к сдаче/ревью.
 
 Артефакты:
-- `CONTRIBUTING.md`
+- `docs/CONTRIBUTING.md`
 - `README.md`
 - ветка `paulhowever` (инженерные фиксы + smoke fallback)
 
 ## Текущий фокус
 
-1. Зафиксировать финальную версию отчёта для сдачи (по `docs/report_template.md`).
-2. Провести финальный docs-pass: `README` + `implementation_report` + roadmap.
-3. Сформировать PR из `paulhowever` в `main` после прохождения smoke-check.
+1. Дозавершить обновлённый research-пакет docs (`results_summary`, `reproducibility`, `abstract`).
+2. Зафиксировать статус быстрого и/или полного прогона в `docs/final_gate.md`.
+3. Сформировать PR из `paulhowever` в `main` после финального docs-pass.

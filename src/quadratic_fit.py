@@ -181,6 +181,7 @@ def fit_hessian_quadratic(
     H11 = (Lp1 - 2 * L0 + Lm1) * inv_eps2
     H22 = (Lp2 - 2 * L0 + Lm2) * inv_eps2
     H12 = (Lpp - Lp1 - Lp2 + L0) * inv_eps2
+    H11, H12, H22 = _project_pd(float(H11), float(H12), float(H22))
 
     f_approx = (
         L0

@@ -1,0 +1,16 @@
+\section{Предобработка}
+
+Используется стандартный для CIFAR-10 набор преобразований:
+\begin{itemize}
+    \item train: \texttt{RandomCrop(32, padding=4)}, \texttt{RandomHorizontalFlip()}, \texttt{Normalize(mean,std)};
+    \item val/test: \texttt{ToTensor()} + \texttt{Normalize(mean,std)}.
+\end{itemize}
+
+\subsection{Почему именно так}
+\begin{itemize}
+    \item Аугментации на train уменьшают переобучение и повышают устойчивость оценки параметров $\theta$.
+    \item Единая нормализация train/val нужна для сопоставимости лосса в surface-оценке.
+\end{itemize}
+
+\subsection{Риски leakage}
+В проекте нет data leakage между train и val: split берётся из официального CIFAR-10 протокола torchvision, а валидационный лосс для surface считается на test/val части без train-аугментаций.

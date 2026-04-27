@@ -47,6 +47,7 @@ def get_val_loader():
             transforms.Normalize(mean, std),
         ]
     )
+    worker_count = 0 if sys.platform == "darwin" else 2
     val_set = datasets.CIFAR10(
         root=config.DATA_DIR, train=False, download=True, transform=val_tf
     )
@@ -54,7 +55,7 @@ def get_val_loader():
         val_set,
         batch_size=config.BATCH_SIZE,
         shuffle=False,
-        num_workers=2,
+        num_workers=worker_count,
         pin_memory=torch.cuda.is_available(),
     )
 
@@ -155,6 +156,8 @@ def compute_surface(
     """
     Сечение f(α,β) = L(θ + α d1 + β d2) на сетке steps×steps.
     Сохраняет .npz с theta_flat, d1_flat, d2_flat для последующего q3 и метрик.
+    При фиксированном seed направления d1/d2 воспроизводимы; при повторных вызовах
+    с тем же seed (например, для разных радиусов) используется одна и та же плоскость.
     """
     _ensure_dirs()
     _set_seeds(seed)

@@ -63,18 +63,19 @@ def get_train_val_loaders():
     val_set = datasets.CIFAR10(
         root=config.DATA_DIR, train=False, download=True, transform=val_tf
     )
+    worker_count = 0 if sys.platform == "darwin" else 2
     train_loader = DataLoader(
         train_set,
         batch_size=config.BATCH_SIZE,
         shuffle=True,
-        num_workers=2,
+        num_workers=worker_count,
         pin_memory=torch.cuda.is_available(),
     )
     val_loader = DataLoader(
         val_set,
         batch_size=config.BATCH_SIZE,
         shuffle=False,
-        num_workers=2,
+        num_workers=worker_count,
         pin_memory=torch.cuda.is_available(),
     )
     return train_loader, val_loader
@@ -132,6 +133,7 @@ def train_model(model: nn.Module, model_name: str, cfg) -> None:
         scheduler.step()
         train_loss = running_loss / max(n_batches, 1)
         val_acc = evaluate(model, val_loader, device)
+        print(f"Epoch {epoch}: train_loss={train_loss:.4f}, val_acc={val_acc:.4f}")
 
         state = {
             "state_dict": model.state_dict(),
