@@ -200,7 +200,7 @@ MPLBACKEND=Agg python3 run_pipeline.py \
 
 ## 16. Authors / Course / Context
 
-- Автор: Павел Тищенко.
+- Автор: Павел Тищенко и Илья Воронин.
 - Контекст: проектная лабораторная работа по анализу loss landscape.
 - Статья-ориентир: Li et al., *Visualizing the Loss Landscape of Neural Nets* (NeurIPS 2018).
 
