@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from matplotlib.colors import LogNorm
+from matplotlib.ticker import LogLocator
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -190,6 +192,75 @@ def plot_1d_metrics_vs_radius(df_1d: pd.DataFrame, filename: str) -> None:
         ax_linf.legend()
     axes[1, 0].set_xlabel("radius")
     axes[1, 1].set_xlabel("radius")
+    path = os.path.join(_fig_dir(), filename)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
+def plot_surface_contour_log(
+    alpha_grid: np.ndarray,
+    beta_grid: np.ndarray,
+    f: np.ndarray,
+    title: str,
+    filename: str,
+    levels: int = 30,
+) -> None:
+    """Контур с лог-цветовой шкалой — для больших радиусов, где значения лосса
+    охватывают несколько порядков и линейная шкала «съедает» детали."""
+    f_pos = np.where(f > 1e-12, f, 1e-12)
+    fig, ax = plt.subplots(figsize=(7.5, 6))
+    norm = LogNorm(vmin=float(f_pos.min()), vmax=float(f_pos.max()))
+    cs = ax.contourf(
+        alpha_grid,
+        beta_grid,
+        f_pos,
+        levels=levels,
+        locator=LogLocator(numticks=levels),
+        cmap="viridis",
+        norm=norm,
+    )
+    ax.contour(
+        alpha_grid,
+        beta_grid,
+        f_pos,
+        levels=cs.levels,
+        colors="white",
+        linewidths=0.4,
+        alpha=0.45,
+    )
+    ax.set_xlabel("α")
+    ax.set_ylabel("β")
+    ax.set_title(title)
+    fig.colorbar(cs, ax=ax, label="Loss (log scale)")
+    path = os.path.join(_fig_dir(), filename)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
+def plot_surface_3d_view(
+    alpha_grid: np.ndarray,
+    beta_grid: np.ndarray,
+    f: np.ndarray,
+    title: str,
+    filename: str,
+    elev: float = 35.0,
+    azim: float = -50.0,
+) -> None:
+    """3D поверхность с подобранным углом обзора, чтобы холмы между минимумами
+    хорошо читались."""
+    fig = plt.figure(figsize=(9, 7))
+    ax = fig.add_subplot(111, projection="3d")
+    surf = ax.plot_surface(
+        alpha_grid, beta_grid, f, cmap="viridis", linewidth=0, antialiased=True
+    )
+    ax.set_xlabel("α")
+    ax.set_ylabel("β")
+    ax.set_zlabel("Loss")
+    ax.set_title(title)
+    ax.view_init(elev=elev, azim=azim)
+    fig.colorbar(surf, shrink=0.55, aspect=12)
     path = os.path.join(_fig_dir(), filename)
     fig.tight_layout()
     fig.savefig(path, dpi=150)

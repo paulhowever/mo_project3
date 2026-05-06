@@ -17,6 +17,7 @@ venv/
 
 # Данные и тяжёлые артефакты
 data/raw/cifar-10-batches-py/
+data/raw/cifar-10-python.tar.gz
 
 data/processed/checkpoints/*
 !data/processed/checkpoints/.gitkeep

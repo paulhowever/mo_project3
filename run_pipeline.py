@@ -35,7 +35,6 @@ from plotting import (  # noqa: E402
     plot_1d_profiles,
     plot_comparison,
     plot_error_heatmap,
-    plot_metrics_vs_radius,
     plot_surface_3d,
     plot_surface_contour,
 )
@@ -281,7 +280,8 @@ def main() -> None:
     df_rad_1d = metrics_1d_vs_radius(
         model_name, model, loader, device, config, max_batches=args.max_batches
     )
-    plot_metrics_vs_radius(df_rad, f"metrics_vs_radius_{model_name}.png")
+    # Удалено: однопиксельный график "RMSE и L_inf vs радиус" (задача 2).
+    # plot_metrics_vs_radius(df_rad, f"metrics_vs_radius_{model_name}.png")
     plot_1d_metrics_vs_radius(df_rad_1d, f"metrics_1d_vs_radius_{model_name}.png")
 
     print("\n=== Параметры аппроксимаций (default radius) ===")

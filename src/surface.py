@@ -165,6 +165,63 @@ def _flatten_state_dict(d: dict[str, torch.Tensor], names: list[str]) -> torch.T
     return torch.cat([d[n].reshape(-1) for n in names])
 
 
+def make_random_filterwise_directions(
+    model: nn.Module, seed: int
+) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor], list[str]]:
+    """
+    Воспроизводимо построить пару (d1, d2): filter-wise нормированных и
+    ортогонализированных направлений. Тот же seed → те же направления, что использует
+    compute_surface, поэтому полученные d1/d2 пригодны для повторного использования
+    (например, для перерасчёта поверхности в собственном базисе Гессиана).
+    """
+    _set_seeds(seed)
+    names = [n for n, _ in model.named_parameters()]
+    param_state = {n: p.detach().cpu().clone() for n, p in model.named_parameters()}
+    raw1 = _random_direction_like_state(param_state)
+    raw2 = _random_direction_like_state(param_state)
+    d1, d2 = _normalize_directions(param_state, raw1, raw2)
+    d2 = _gram_schmidt_orthogonalize(d1, d2, names)
+    d2_renorm: dict[str, torch.Tensor] = {}
+    for n in names:
+        d2_renorm[n] = _filterwise_normalize_direction(param_state[n], d2[n])
+    return d1, d2_renorm, names
+
+
+def _scan_grid_with_directions(
+    model: nn.Module,
+    loader: DataLoader,
+    device: torch.device,
+    param_state: dict[str, torch.Tensor],
+    full_base_state: dict[str, torch.Tensor],
+    d1: dict[str, torch.Tensor],
+    d2: dict[str, torch.Tensor],
+    radius: float,
+    steps: int,
+    max_batches: int,
+    desc: str,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    alphas = np.linspace(-radius, radius, steps, dtype=np.float64)
+    betas = np.linspace(-radius, radius, steps, dtype=np.float64)
+    alpha_grid, beta_grid = np.meshgrid(alphas, betas, indexing="ij")
+    f = np.zeros((steps, steps), dtype=np.float64)
+    model = model.to(device)
+    total = steps * steps
+    pbar = tqdm(range(total), desc=desc)
+    for idx in pbar:
+        i = idx // steps
+        j = idx % steps
+        a = float(alpha_grid[i, j])
+        b = float(beta_grid[i, j])
+        shifted_params = _state_from_base_and_directions(param_state, d1, d2, a, b, device)
+        current_state = {k: v.to(device) for k, v in full_base_state.items()}
+        current_state.update(shifted_params)
+        model.load_state_dict(current_state, strict=True)
+        with torch.no_grad():
+            loss = _eval_loss_batches(model, loader, device, max_batches=max_batches)
+        f[i, j] = loss
+    return f, alpha_grid, beta_grid
+
+
 def compute_surface(
     model: nn.Module,
     loader: DataLoader,
@@ -186,42 +243,22 @@ def compute_surface(
     что гарантирует геометрически чистые оси плоскости сечения.
     """
     _ensure_dirs()
-    _set_seeds(seed)
-    names = [n for n, _ in model.named_parameters()]
+    d1, d2, names = make_random_filterwise_directions(model, seed)
     param_state = {n: p.detach().cpu().clone() for n, p in model.named_parameters()}
     full_base_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
-    raw1 = _random_direction_like_state(param_state)
-    raw2 = _random_direction_like_state(param_state)
-    d1, d2 = _normalize_directions(param_state, raw1, raw2)
-    d2 = _gram_schmidt_orthogonalize(d1, d2, names)
-    d2_normalized: dict[str, torch.Tensor] = {}
-    for n in names:
-        d2_normalized[n] = _filterwise_normalize_direction(param_state[n], d2[n])
-    d2 = d2_normalized
     theta_flat = _flatten_state_dict(param_state, names)
     d1_flat = _flatten_state_dict(d1, names)
     d2_flat = _flatten_state_dict(d2, names)
 
-    alphas = np.linspace(-radius, radius, steps, dtype=np.float64)
-    betas = np.linspace(-radius, radius, steps, dtype=np.float64)
-    alpha_grid, beta_grid = np.meshgrid(alphas, betas, indexing="ij")
-    f = np.zeros((steps, steps), dtype=np.float64)
-
-    model = model.to(device)
-    total = steps * steps
-    pbar = tqdm(range(total), desc="Loss surface")
-    for idx in pbar:
-        i = idx // steps
-        j = idx % steps
-        a = float(alpha_grid[i, j])
-        b = float(beta_grid[i, j])
-        shifted_params = _state_from_base_and_directions(param_state, d1, d2, a, b, device)
-        current_state = {k: v.to(device) for k, v in full_base_state.items()}
-        current_state.update(shifted_params)
-        model.load_state_dict(current_state, strict=True)
-        with torch.no_grad():
-            loss = _eval_loss_batches(model, loader, device, max_batches=max_batches)
-        f[i, j] = loss
+    f, alpha_grid, beta_grid = _scan_grid_with_directions(
+        model, loader, device,
+        param_state=param_state,
+        full_base_state=full_base_state,
+        d1=d1, d2=d2,
+        radius=radius, steps=steps,
+        max_batches=max_batches,
+        desc="Loss surface",
+    )
 
     out_path = os.path.join(cfg.RESULTS_DIR, f"surface_{model_name}_r{radius}.npz")
     np.savez(
@@ -233,6 +270,58 @@ def compute_surface(
         d1_flat=d1_flat.numpy(),
         d2_flat=d2_flat.numpy(),
         seed=np.array(seed),
+    )
+    restored_state = {k: v.to(device) for k, v in full_base_state.items()}
+    model.load_state_dict(restored_state, strict=True)
+    return f, alpha_grid, beta_grid
+
+
+def compute_surface_along_directions(
+    model: nn.Module,
+    loader: DataLoader,
+    device: torch.device,
+    radius: float,
+    steps: int,
+    model_name: str,
+    cfg,
+    d1: dict[str, torch.Tensor],
+    d2: dict[str, torch.Tensor],
+    out_filename: str,
+    max_batches: int = 10,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Аналогично compute_surface, но направления d1, d2 задаются извне (например,
+    собственные векторы 2×2-проекции Гессиана внутри уже выбранной плоскости).
+    Имя выходного .npz задаётся параметром out_filename, чтобы не перезаписывать
+    основной кэш surface_{model}_r{r}.npz.
+    """
+    _ensure_dirs()
+    names = [n for n, _ in model.named_parameters()]
+    param_state = {n: p.detach().cpu().clone() for n, p in model.named_parameters()}
+    full_base_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+    theta_flat = _flatten_state_dict(param_state, names)
+    d1_flat = _flatten_state_dict(d1, names)
+    d2_flat = _flatten_state_dict(d2, names)
+
+    f, alpha_grid, beta_grid = _scan_grid_with_directions(
+        model, loader, device,
+        param_state=param_state,
+        full_base_state=full_base_state,
+        d1=d1, d2=d2,
+        radius=radius, steps=steps,
+        max_batches=max_batches,
+        desc=f"Surface ({out_filename})",
+    )
+
+    out_path = os.path.join(cfg.RESULTS_DIR, out_filename)
+    np.savez(
+        out_path,
+        alpha_grid=alpha_grid,
+        beta_grid=beta_grid,
+        f=f,
+        theta_flat=theta_flat.numpy(),
+        d1_flat=d1_flat.numpy(),
+        d2_flat=d2_flat.numpy(),
     )
     restored_state = {k: v.to(device) for k, v in full_base_state.items()}
     model.load_state_dict(restored_state, strict=True)
